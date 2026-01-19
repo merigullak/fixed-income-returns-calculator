@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fixed Income Plan XIRR Calculator</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .scenario-selector {
+            margin-bottom: 30px;
+        }
+
+        .scenario-selector label {
+            display: block;
+            padding: 12px 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .scenario-selector input[type="radio"] {
+            margin-right: 12px;
+            transform: scale(1.2);
+        }
+
+        .scenario-selector input[type="radio"]:checked + label {
+            background: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        input[type="number"], input[type="date"], select {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        input[type="number"]:focus, input[type="date"]:focus, select:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .premium-section, .payout-section {
+            background: #f8fafc;
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .compute-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin: 30px 0;
+        }
+
+        .compute-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .compute-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            display: none;
+        }
+
+        .xirr-value {
+            font-size: 36px;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+
+        .cashflows-table {
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            color: #374151;
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: right;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            text-align: left;
+        }
+
+        .outflow { color: #ef4444; }
+        .inflow { color: #10b981; }
+
+        .error {
+            background: #fef2f2;
+            color: #dc2626;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #dc2626;
+            display: none;
+        }
+
+        @media (max-width: 640px) {
+            .input-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧮 Fixed Income XIRR Calculator</h1>
+            <p>Calculate XIRR for Indian deferred income plans with overlapping payouts</p>
+        </div>
+
+        <div class="content">
+            <div class="scenario-selector">
+                <input type="radio" id="scenarioA" name="scenario" value="A" checked>
+                <label for="scenarioA">
+                    <strong>Scenario A:</strong> Premium → Wait → Income (Classic)
+                </label>
+                <br><br>
+                <input type="radio" id="scenarioB" name="scenario" value="B">
+                <label for="scenarioB">
+                    <strong>Scenario B:</strong> Income from Year 2 (Premium continues)
+                </label>
+            </div>
+
+            <div class="input-group">
+                <label>Plan Start Date</label>
+                <input type="date" id="startDate" value="2026-01-01">
+            </div>
+
+            <div class="input-group">
+                <label>Age at Start (years)</label>
+                <input type="number" id="startAge" min="18" max="70" value="35">
+            </div>
+
+            <div class="premium-section">
+                <h3 style="margin-bottom: 20px; color: #374151;">💰 Premium Payments</h3>
+                <div class="input-row">
+                    <div>
+                        <label>Annual Premium (₹)</label>
+                        <input type="number" id="premiumAmount" min="10000" value="100000">
+                    </div>
+                    <div>
+                        <label>Premium Term (years)</label>
+                        <input type="number" id="premiumYears" min="1" max="30" value="10">
+                    </div>
+                </div>
+                <div style="margin-top: 15px;">
+                    <label>Premium Frequency</label>
+                    <select id="premiumFreq">
+                        <option value="annual">Annual</option>
+                        <option value="semi">Semi-Annual</option>
+                        <option value="quarterly">Quarterly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="payout-section">
+                <h3 style="margin-bottom: 20px; color: #374151;">💸 Payouts</h3>
+                <div class="input-row">
+                    <div>
+                        <label>Annual Payout Amount (₹)</label>
+                        <input type="number" id="payoutAmount" min="10000" value="25000">
+                    </div>
+                    <div id="payoutTermGroup">
+                        <label>Payout Term</label>
+                        <select id="payoutTerm">
+                            <option value="fixed">Fixed Years</option>
+                            <option value="lifetime">Lifetime (to age 75)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-row" id="waitGroup">
+                    <div>
+                        <label>Wait Period After Premium (years)</label>
+                        <input type="number" id="waitYears" min="0" max="20" value="5">
+                    </div>
+                    <div>
+                        <label>Total Payout Years</label>
+                        <input type="number" id="payoutYears" min="1" max="50" value="20">
+                    </div>
+                </div>
+            </div>
+
+            <button class="compute-btn" onclick="calculateXIRR()">🧮 Calculate XIRR</button>
+
+            <div class="error" id="errorMsg"></div>
+            <div class="results" id="results">
+                <div class="xirr-value" id="xirrValue">--%</div>
+                <div style="font-size: 18px; opacity: 0.9;">Annualized XIRR</div>
+                <div class="cashflows-table">
+                    <table id="cashflowTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Amount (₹)</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // XIRR Implementation [web:2][web:8][web:15]
+        function daysBetween(date1, date2) {
+            const oneDay = 1000 * 60 * 60 * 24;
+            return (date2 - date1) / oneDay;
+        }
+
+        function xnpv(rate, cashflows) {
+            let index = 0;
+            let result = cashflows[0].amount;
+            for (index = 1; index < cashflows.length; index++) {
+                const years = daysBetween(cashflows[0].date, cashflows[index].date) / 365;
+                result += cashflows[index].amount / Math.pow(1 + rate, years);
+            }
+            return result;
+        }
+
+        function xirr(cashflows, guess = 0.10) {
+            const epsilon = 0.0001;
+            let low = -0.99;
+            let high = 10;
+            let guessRate = guess;
+
+            // Bisection method for reliability
+            for (let i = 0; i < 100; i++) {
+                const xnpvGuess = xnpv(guessRate, cashflows);
+                if (Math.abs(xnpvGuess) < epsilon) {
+                    return guessRate;
+                }
+
+                if (xnpvGuess > 0) {
+                    low = guessRate;
+                } else {
+                    high = guessRate;
+                }
+                guessRate = (low + high) / 2;
+            }
+            return guessRate;
+        }
+
+        // Generate cash flows
+        function generateCashFlows() {
+            const startDate = new Date(document.getElementById('startDate').value);
+            const startAge = parseInt(document.getElementById('startAge').value);
+            const premiumAmount = parseFloat(document.getElementById('premiumAmount').value);
+            const premiumYears = parseInt(document.getElementById('premiumYears').value);
+            const premiumFreq = document.getElementById('premiumFreq').value;
+            const payoutAmount = parseFloat(document.getElementById('payoutAmount').value);
+            const scenario = document.querySelector('input[name="scenario"]:checked').value;
+            const payoutTerm = document.getElementById('payoutTerm').value;
+            const waitYears = parseInt(document.getElementById('waitYears').value);
+            const payoutYearsInput = parseInt(document.getElementById('payoutYears').value);
+
+            const cashflows = [];
+
+            // Calculate payout years
+            let payoutYears = payoutYearsInput;
+            if (payoutTerm === 'lifetime') {
+                payoutYears = Math.max(1, 75 - startAge);
+            }
+
+            const freqMonths = {
+                'annual': 12,
+                'semi': 6,
+                'quarterly': 3,
+                'monthly': 1
+            };
+            const monthsPerPayment = freqMonths[premiumFreq];
+
+            // Generate premium outflows
+            let currentDate = new Date(startDate);
+            for (let i = 0; i < premiumYears * 12 / monthsPerPayment; i++) {
+                cashflows.push({
+                    date: new Date(currentDate),
+                    amount: -premiumAmount / (12 / monthsPerPayment)
+                });
+                currentDate.setMonth(currentDate.getMonth() + monthsPerPayment);
+            }
+
+            // Generate payouts based on scenario
+            let firstPayoutDate;
+            if (scenario === 'A') {
+                // Scenario A: After wait period
+                const lastPremiumDate = new Date(startDate);
+                lastPremiumDate.setFullYear(startDate.getFullYear() + premiumYears);
+                firstPayoutDate = new Date(lastPremiumDate);
+                firstPayoutDate.setFullYear(lastPremiumDate.getFullYear() + waitYears);
+            } else {
+                // Scenario B: From year 2
+                firstPayoutDate = new Date(startDate);
+                firstPayoutDate.setFullYear(startDate.getFullYear() + 1);
+            }
+
+            // Annual payouts (simplified)
+            let payoutDate = new Date(firstPayoutDate);
+            for (let i = 0; i < payoutYears; i++) {
+                cashflows.push({
+                    date: new Date(payoutDate),
+                    amount: payoutAmount
+                });
+                payoutDate.setFullYear(payoutDate.getFullYear() + 1);
+            }
+
+            return cashflows.sort((a, b) => a.date - b.date);
+        }
+
+        function showError(msg) {
+            document.getElementById('errorMsg').textContent = msg;
+            document.getElementById('errorMsg').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+        }
+
+        function calculateXIRR() {
+            try {
+                document.getElementById('errorMsg').style.display = 'none';
+
+                const cashflows = generateCashFlows();
+
+                // Validation
+                if (cashflows.length === 0) {
+                    throw new Error('No cash flows generated. Check inputs.');
+                }
+
+                const hasOutflow = cashflows.some(cf => cf.amount < 0);
+                const hasInflow = cashflows.some(cf => cf.amount > 0);
+                if (!hasOutflow || !hasInflow) {
+                    throw new Error('Need both premiums (outflows) and payouts (inflows).');
+                }
+
+                const rate = xirr(cashflows) * 100; // Convert to percentage
+                if (isNaN(rate) || !isFinite(rate)) {
+                    throw new Error('XIRR calculation failed to converge. Try different inputs.');
+                }
+
+                // Display results
+                document.getElementById('xirrValue').textContent = rate.toFixed(2) + '%';
+                document.getElementById('results').style.display = 'block';
+
+                // Show cash flow table (first 15 + last 5)
+                const tableBody = document.querySelector('#cashflowTable tbody');
+                tableBody.innerHTML = '';
+                
+                const displayFlows = [...cashflows.slice(0, 10), ...cashflows.slice(-5)];
+                displayFlows.forEach(cf => {
+                    const row = tableBody.insertRow();
+                    row.innerHTML = `
+                        <td>${cf.date.toLocaleDateString('en-IN')}</td>
+                        <td>${cf.amount.toLocaleString('en-IN', {maximumFractionDigits: 0})}</td>
+                        <td class="${cf.amount < 0 ? 'outflow' : 'inflow'}">
+                            ${cf.amount < 0 ? 'Premium' : 'Payout'}
+                        </td>
+                    `;
+                });
+
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        // Event listeners for dynamic UI
+        document.getElementById('payoutTerm').addEventListener('change', function() {
+            const waitGroup = document.getElementById('waitGroup');
+            const scenario = document.querySelector('input[name="scenario"]:checked').value;
+            
+            if (scenario === 'B') {
+                document.getElementById('waitYears').value = 0;
+                document.getElementById('waitYears').disabled = true;
+            } else {
+                document.getElementById('waitYears').disabled = false;
+            }
+        });
+
+        document.querySelectorAll('input[name="scenario"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const waitGroup = document.getElementById('waitGroup');
+                const scenario = this.value;
+                
+                if (scenario === 'B') {
+                    waitGroup.children[0].querySelector('input').disabled = true;
+                    waitGroup.children[0].querySelector('input').value = 0;
+                } else {
+                    waitGroup.children[0].querySelector('input').disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
